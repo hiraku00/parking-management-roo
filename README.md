@@ -6,9 +6,9 @@
 
 - Frontend: React + TypeScript + Vite + Tailwind CSS
 - Backend / Hosting / DB: Supabase
-- Payments: Stripe Checkout
+- Payments: Stripe Checkout（準備中）
 
-## 開発環境のセットアップ
+## セットアップ
 
 ### 1. 依存関係のインストール
 ```bash
@@ -18,7 +18,6 @@ npm install
 ### 2. Supabaseプロジェクトの作成と設定
 
 1. [Supabase](https://supabase.com/)にアクセスし、アカウントを作成
-
 2. 新しいプロジェクトを作成
    - Organization: 新規作成または既存のものを選択
    - プロジェクト名: 任意（例: parking-management）
@@ -40,10 +39,6 @@ npm install
      - Project URL（`VITE_SUPABASE_URL`に使用）
      - anon/public key（`VITE_SUPABASE_ANON_KEY`に使用）
 
-5. RLSポリシーの設定（オプション）
-   - 「Authentication」→「Policies」で各テーブルのアクセス権を設定
-   - 開発時は一時的にすべての操作を許可することも可能
-
 ### 3. 環境変数の設定
 ```bash
 cp .env.example .env
@@ -55,24 +50,14 @@ cp .env.example .env
 VITE_SUPABASE_URL=あなたのプロジェクトURL
 VITE_SUPABASE_ANON_KEY=あなたの匿名キー
 
-# Stripeの設定（テスト用）
-VITE_STRIPE_PUBLIC_KEY=Stripeのパブリックキー
-
 # アプリケーション設定
 VITE_MONTHLY_PRICE=3500
-VITE_API_URL=http://localhost:3000/api
 ```
 
 ### 4. 開発サーバーの起動
 ```bash
 npm run dev
 ```
-
-### 5. 動作確認
-1. ブラウザで http://localhost:5173 を開く
-2. 以下のURLでそれぞれの機能を確認
-   - オーナーダッシュボード: http://localhost:5173/owner
-   - 契約者ページ: http://localhost:5173/contractor/山田太郎（サンプルデータの名前）
 
 ## データベース構造
 
@@ -93,13 +78,16 @@ npm run dev
 | month | int | 支払月 |
 | amount | int | 金額（円） |
 | paid_at | timestamp | 支払日時 |
-| stripe_payment_intent_id | text | Stripe支払ID |
+| stripe_payment_intent_id | text | Stripe支払ID（将来的に使用） |
+
+※ contractor_id, year, monthの組み合わせにUNIQUE制約あり
 
 ## 機能一覧
 
 ### 契約者向け機能
 - 名前による簡易アクセス（ログイン不要）
-- 月額支払いの選択と決済
+- 未払い月の確認（最大12か月前まで）
+- 支払い月数の選択（複数月の一括支払い可能）
 - 支払い履歴の確認
 - 領収書のPDFダウンロード
 
@@ -107,24 +95,52 @@ npm run dev
 - 契約者一覧の表示
 - 契約者ごとの支払い状況確認
 - 支払い履歴の確認
+- 領収書の発行
 
-## ディレクトリ構造
+## アプリケーション構造
 
+### コンポーネント設計（Atomic Design）
 ```
 src/
-  ├── components/    # Atomic Designベースのコンポーネント
-  │   ├── atoms/    # 基本的なUIパーツ
-  │   ├── molecules/# 複合的なUIコンポーネント
-  │   └── organisms/# 機能を持ったコンポーネント
-  ├── pages/        # ページコンポーネント
-  │   ├── owner/    # オーナー向けページ
+  ├── components/
+  │   ├── atoms/      # 基本的なUIパーツ
+  │   │   ├── ArrowIcon.tsx
+  │   │   └── PaymentButton.tsx
+  │   ├── molecules/  # 複合的なUIコンポーネント
+  │   │   ├── Header.tsx
+  │   │   └── ErrorDisplay.tsx
+  │   └── organisms/ # 機能を持ったコンポーネント
+  ├── pages/         # ページコンポーネント
+  │   ├── owner/     # オーナー向けページ
   │   └── contractor/# 契約者向けページ
-  ├── lib/         # ユーティリティ関数とAPI
-  └── types/       # 型定義
+  ├── lib/          # ユーティリティ関数とAPI
+  └── types/        # 型定義
 ```
 
-## ルーティング
+### APIクライアント設計
+```
+src/lib/
+  ├── api.ts           # APIクライアント（支払い処理）
+  ├── supabase.ts      # Supabaseクライアント
+  ├── stripe.ts        # Stripe統合（将来的に実装）
+  └── generateReceipt.ts # PDF生成
+```
 
-- `/owner` - オーナーダッシュボード
-- `/owner/contractor/:id` - 契約者詳細
-- `/contractor/:name` - 契約者ページ
+## アクセス方法
+
+1. オーナーダッシュボード
+   ```
+   http://localhost:5173/owner
+   ```
+
+2. 契約者ページ（例）
+   ```
+   http://localhost:5173/contractor/山田太郎
+   http://localhost:5173/contractor/佐藤花子
+   ```
+
+## 開発環境
+
+- Node.js 18以上
+- npm 9以上
+- Git
