@@ -1,34 +1,22 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { Toaster } from 'react-hot-toast';
-import { OwnerDashboard } from './pages/owner/Dashboard';
-import { ContractorDetails } from './pages/owner/ContractorDetails';
-import { ContractorPage } from './pages/contractor/ContractorPage';
+import Dashboard from './pages/owner/Dashboard';
+import ContractorPage from './pages/contractor/ContractorPage';
+import PaymentSuccessPage from './pages/PaymentSuccessPage';
 
-function App() {
+const App = () => {
   return (
     <Router>
-      <div className="min-h-screen bg-gray-50">
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            duration: 3000,
-            className: 'text-sm',
-          }}
+      <Routes>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/contractor/:name" element={<ContractorPage />} />
+        <Route
+          path="/contractor/:contractorName/payment/success"
+          element={<PaymentSuccessPage />}
         />
-        <Routes>
-          {/* オーナー関連のルート */}
-          <Route path="/owner" element={<OwnerDashboard />} />
-          <Route path="/owner/contractor/:id" element={<ContractorDetails />} />
-
-          {/* 契約者関連のルート */}
-          <Route path="/contractor/:name" element={<ContractorPage />} />
-
-          {/* その他のルートはオーナーダッシュボードにリダイレクト */}
-          <Route path="*" element={<Navigate to="/owner" replace />} />
-        </Routes>
-      </div>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </Router>
   );
-}
+};
 
 export default App;

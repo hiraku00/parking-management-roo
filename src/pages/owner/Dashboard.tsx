@@ -1,135 +1,138 @@
 import { useEffect, useState } from 'react';
+import { Container, Title, Table, Button, Group, Text } from '@mantine/core';
 import { Link } from 'react-router-dom';
-import { Header } from '../../components/molecules/Header';
-import { ErrorDisplay } from '../../components/molecules/ErrorDisplay';
-import { ArrowIcon } from '../../components/atoms/ArrowIcon';
-import { getAllContractors, getContractorPayments } from '../../lib/supabase';
-import type { Contractor, Payment } from '../../types/database';
-import toast from 'react-hot-toast';
+import { supabase } from '../../lib/supabase';
+import type { Database } from '../../types/database';
 
-interface ContractorWithPayments extends Contractor {
-  latestPayment?: Payment;
-}
+type Contractor = Database['public']['Tables']['contractors']['Row'] & {
+  latest_payment?: string | null;
+  unpaid_months?: number;
+};
 
-export const OwnerDashboard = () => {
-  const [contractors, setContractors] = useState<ContractorWithPayments[]>([]);
+const Dashboard = () => {
+  const [contractors, setContractors] = useState<Contractor[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchContractors = async () => {
       try {
-        const contractorsData = await getAllContractors();
+        // 契約者情報の取得
+        const { data: contractorsData, error: contractorsError } = await supabase
+          .from('contractors')
+          .select('*')
+          .order('parking_number');
+
+        if (contractorsError) throw contractorsError;
+
+        // 各契約者の最新の支払い情報を取得
         const contractorsWithPayments = await Promise.all(
-          contractorsData.map(async (contractor) => {
-            try {
-              const payments = await getContractorPayments(contractor.id);
-              return {
-                ...contractor,
-                latestPayment: payments[0],
-              };
-            } catch (paymentError) {
-              console.error(`Error fetching payments for ${contractor.name}:`, paymentError);
-              return {
-                ...contractor,
-                latestPayment: undefined,
-              };
+          (contractorsData || []).map(async (contractor) => {
+            const { data: payments } = await supabase
+              .from('payments')
+              .select('paid_at, year, month')
+              .eq('contractor_id', contractor.id)
+              .order('year desc, month desc')
+              .limit(1);
+
+            const latestPayment = payments && payments[0];
+
+            // 未払い月数の計算
+            let unpaidMonths = 0;
+            if (latestPayment) {
+              const today = new Date();
+              const lastPaidDate = new Date(
+                latestPayment.year,
+                latestPayment.month - 1
+              );
+              const monthsDiff =
+                (today.getFullYear() - lastPaidDate.getFullYear()) * 12 +
+                (today.getMonth() - lastPaidDate.getMonth());
+              unpaidMonths = Math.max(0, monthsDiff - 1); // 当月を除く
             }
+
+            return {
+              ...contractor,
+              latest_payment: latestPayment?.paid_at || null,
+              unpaid_months: unpaidMonths,
+            };
           })
         );
+
         setContractors(contractorsWithPayments);
-        setError(null);
-      } catch (error) {
-        console.error('Error fetching data:', error);
-        setError(error as Error);
-        toast.error('データの取得に失敗しました');
+      } catch (err) {
+        setError(err instanceof Error ? err.message : '読み込みに失敗しました');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchData();
+    fetchContractors();
   }, []);
 
-  const getCurrentMonthYear = () => {
-    const now = new Date();
-    return {
-      year: now.getFullYear(),
-      month: now.getMonth() + 1,
-    };
-  };
-
-  const isPaymentOverdue = (payment?: Payment) => {
-    if (!payment) return true;
-    const { year, month } = getCurrentMonthYear();
-    return payment.year < year || (payment.year === year && payment.month < month);
-  };
-
   if (loading) {
-    return (
-      <div className="min-h-screen">
-        <Header title="オーナーダッシュボード" />
-        <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
-          <div className="text-center">読み込み中...</div>
-        </main>
-      </div>
-    );
+    return <div>Loading...</div>;
   }
 
-  return (
-    <div className="min-h-screen">
-      <Header title="オーナーダッシュボード" />
-      <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
-        {error && <ErrorDisplay error={error} />}
+  if (error) {
+    return <div>Error: {error}</div>;
+  }
 
-        {contractors.length === 0 && !error ? (
-          <div className="text-center text-gray-500 mt-4">
-            契約者が登録されていません
-          </div>
-        ) : (
-          <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
-            <ul role="list" className="divide-y divide-gray-100">
-              {contractors.map((contractor) => (
-                <li key={contractor.id} className="relative flex justify-between gap-x-6 px-4 py-5 hover:bg-gray-50 sm:px-6">
-                  <div className="flex min-w-0 gap-x-4">
-                    <div className="min-w-0 flex-auto">
-                      <p className="text-sm font-semibold leading-6 text-gray-900">
-                        <Link to={`/owner/contractor/${contractor.id}`} className="hover:underline">
-                          {contractor.name}
-                        </Link>
-                      </p>
-                      <p className="mt-1 text-xs leading-5 text-gray-500">
-                        駐車場番号: {contractor.parking_number}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-x-4">
-                    <div className="hidden sm:flex sm:flex-col sm:items-end">
-                      <p
-                        className={`text-sm leading-6 ${
-                          isPaymentOverdue(contractor.latestPayment)
-                            ? 'text-red-600'
-                            : 'text-green-600'
-                        }`}
-                      >
-                        {isPaymentOverdue(contractor.latestPayment)
-                          ? '未払い'
-                          : '支払い済み'}
-                      </p>
-                      {contractor.latestPayment && (
-                        <p className="mt-1 text-xs leading-5 text-gray-500">
-                          最終支払: {contractor.latestPayment.year}年{contractor.latestPayment.month}月
-                        </p>
-                      )}
-                    </div>
-                    <ArrowIcon />
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </main>
-    </div>
+  const createContractorLink = (name: string) => {
+    // URLに使用できない文字をエンコード
+    return `/contractor/${encodeURIComponent(name)}`;
+  };
+
+  return (
+    <Container size="xl">
+      <Title order={2} mb="lg">
+        契約者一覧
+      </Title>
+
+      <Table>
+        <Table.Thead>
+          <Table.Tr>
+            <Table.Th>区画番号</Table.Th>
+            <Table.Th>契約者名</Table.Th>
+            <Table.Th>連絡先</Table.Th>
+            <Table.Th>最終支払日</Table.Th>
+            <Table.Th>未払い月数</Table.Th>
+            <Table.Th></Table.Th>
+          </Table.Tr>
+        </Table.Thead>
+        <Table.Tbody>
+          {contractors.map((contractor) => (
+            <Table.Tr key={contractor.id}>
+              <Table.Td>{contractor.parking_number}</Table.Td>
+              <Table.Td>{contractor.name}</Table.Td>
+              <Table.Td>{contractor.phone}</Table.Td>
+              <Table.Td>
+                {contractor.latest_payment
+                  ? new Date(contractor.latest_payment).toLocaleDateString()
+                  : '-'}
+              </Table.Td>
+              <Table.Td>
+                <Text c={contractor.unpaid_months ? 'red' : 'inherit'}>
+                  {contractor.unpaid_months || 0}ヶ月
+                </Text>
+              </Table.Td>
+              <Table.Td>
+                <Group justify="flex-end">
+                  <Button
+                    component={Link}
+                    to={createContractorLink(contractor.name)}
+                    size="xs"
+                  >
+                    詳細
+                  </Button>
+                </Group>
+              </Table.Td>
+            </Table.Tr>
+          ))}
+        </Table.Tbody>
+      </Table>
+    </Container>
   );
 };
+
+export default Dashboard;

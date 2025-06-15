@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import type { Database } from '../types/database';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -7,7 +8,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
 
 export const getContractorByName = async (name: string) => {
   try {
@@ -19,7 +20,7 @@ export const getContractorByName = async (name: string) => {
 
     if (error) {
       console.error('Supabase error:', error);
-      throw new Error(`契約者の取得に失敗しました: ${error.message}`);
+      throw new Error(`契約者情報の取得に失敗しました: ${error.message}`);
     }
     return data;
   } catch (error) {

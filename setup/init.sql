@@ -19,6 +19,8 @@ CREATE TABLE payments (
   amount INTEGER NOT NULL,
   paid_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
   stripe_payment_intent_id TEXT,
+  stripe_session_id TEXT,
+  status TEXT DEFAULT 'completed',
   UNIQUE(contractor_id, year, month)
 );
 
@@ -55,13 +57,15 @@ BEGIN
       year,
       month,
       amount,
-      paid_at
+      paid_at,
+      status
     ) VALUES (
       yamada_id,
       EXTRACT(YEAR FROM payment_date),
       EXTRACT(MONTH FROM payment_date),
       3500,
-      payment_date + '15 days'::INTERVAL
+      payment_date + '15 days'::INTERVAL,
+      'completed'
     )
     ON CONFLICT (contractor_id, year, month) DO NOTHING;
   END LOOP;
@@ -74,13 +78,15 @@ BEGIN
       year,
       month,
       amount,
-      paid_at
+      paid_at,
+      status
     ) VALUES (
       suzuki_id,
       EXTRACT(YEAR FROM payment_date),
       EXTRACT(MONTH FROM payment_date),
       3500,
-      payment_date + '15 days'::INTERVAL
+      payment_date + '15 days'::INTERVAL,
+      'completed'
     )
     ON CONFLICT (contractor_id, year, month) DO NOTHING;
   END LOOP;
@@ -93,13 +99,15 @@ BEGIN
       year,
       month,
       amount,
-      paid_at
+      paid_at,
+      status
     ) VALUES (
       sato_id,
       EXTRACT(YEAR FROM payment_date),
       EXTRACT(MONTH FROM payment_date),
       3500,
-      payment_date + '15 days'::INTERVAL
+      payment_date + '15 days'::INTERVAL,
+      'completed'
     )
     ON CONFLICT (contractor_id, year, month) DO NOTHING;
   END LOOP;
