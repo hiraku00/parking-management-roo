@@ -12,9 +12,11 @@
   "dependencies": {
     "@headlessui/react": "^2.2.4",
     "@heroicons/react": "^2.2.0",
+    "@mantine/core": "^8.1.0",
     "@react-pdf/renderer": "^4.3.0",
     "@stripe/stripe-js": "^7.3.1",
     "@supabase/supabase-js": "^2.50.0",
+    "@tabler/icons-react": "^3.34.0",
     "@types/react-router-dom": "^5.3.3",
     "clsx": "^2.1.1",
     "react": "^19.1.0",
